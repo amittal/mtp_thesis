@@ -19,3 +19,41 @@ Finally, read/write tracing can result in a large number of page faults(VM exits
 
 In summary, this project presents an efficient host-side optimization solution for Power Architecture virtualization. Our approach significantly improves the performance of an unmodified guest. The scheme is based on in-place binary translation, and maintains guest correctness in presence of self-referential and self-modifying guest code.
 
+\begin{table*}
+\centering
+      \begin{tabular}{|l@{} | p{3.0cm} |p{3.8cm} | r r r r r|} \hline
+        S.No.\verb, ,&  Benchmark\verb, ,& Description  & Bare-metal \verb, ,& {\tt KVM} \verb, , & {\tt KVM-PV} \verb, ,& {\tt KVM-BT}& Speedup \\ \hline
+
+     &&& \multicolumn{5}{c|}{ Running Time in $sec$}\\\cline {4-8}  
+      1&  Linux boot& Boots a Linux 3.0 guest & 6.5	&	30.03	&	11.79	&	12.39 & 2.4x \\ \hline
+      2& Echo spawn	& Spawns 1000 echo processes &1.4	&	21.34	&	6.5	&	6.85& 3.1x \\\hline
+      3& Find	& Executes {\tt 'find / -name temp'} & 0.39	&	1.89	&	0.67	&	0.83 & 2.3x\\ \hline
+      4& Lame	& MP3 encoder & 0.44	&	0.56	&	0.49	&	0.50 & 1.1x\\ \hline
+	   \multicolumn{3}{|c|}{ lmbench microbenchmarks }& \multicolumn{5}{c|}{Latency in $msec$}\\  \hline
+
+5	&	syscall	&	 Writes one word to /dev/null	&	0.0002	&	0.020	&	0.003	&	0.003 & 6.7x	\\	\hline
+6	&	stat	&	 Invokes the stat system call	&	0.003	&	0.033	&	0.006	&	0.007& 4.7x	\\	\hline
+7	&	fstat	&	Invokes fstat system call on an open file 	&	0.001	&	0.021	&	0.004	&	0.004&5.3x	\\	\hline
+8	&	open/close:	&	Opens a temporary file for reading and closes it immediately 	&	0.006	&	0.067	&	0.013	&	0.023&2.9x	\\	\hline
+9	&	sig hndl	&	Installs a signal handler	&	0.001	&	0.024	&	0.004	&	0.004	& 6x\\	\hline
+10	&	pipe 	&	Passes a word from process A to process B and back to A	and measures round-trip time &	0.003	&	0.066	&	0.010	&	0.041&1.6x	\\	\hline
+11	&	fork	&  Calls {\tt fork} and {\tt exit} 	&	1.084	&	6.641	&	1.640	&	1.679&3.9x	\\	\hline
+12	&	exec	& Calls {\tt fork}, {\tt exec} and {\tt exit} &	3.065	&	20.543	&	6.254	&	6.681&3.1x	\\	\hline
+13	&	sh	& Calls {\tt fork}, {\tt exec sh -c} and {\tt exit}	&	6.645	&	45.164	&	13.842	&	14.719&3.1x	\\	\hline
+	\multicolumn{3}{|c|}{ Unixbench microbenchmarks }& \multicolumn{5}{c|}{Number of Calls in 10s }\\  \hline
+15	&	Dhrystone 2	& Focuses on string handling	&	49697211	&	48110141	&	49014236	&	48957180	&	1.02x	\\	\hline
+16	&	System Call	& Calls the getpid system call	&	7863359	&	124854	&	818940	&	652829	&	5.2x	\\	\hline
+17	&	Pipe-based Context Switching	& Spawns a child process with which it carries on a bi-directional pipe conversation	&	420968	&	60746	&	307136	&	240653	&	4.0x	\\	\hline
+18	&	Process Creation	& Forks and reap a child that immediately exits.	&	44667	&	2470	&	9432	&	8714	&	3.5x	\\	\hline
+19	&	Pipe Throughput	& Writes 512 bytes to a pipe and read them back	&	3324145	&	188208	&	1111797		&	923218	&	4.9x	\\	\hline
+20	&	Hanoi	& Calls Hanoi Program	&	8853023	&	8689401	&	8846663	&	8836219	&	1.02x	\\	\hline
+	\multicolumn{3}{|c|}{ Unixbench Filesystem microbenchmarks }& \multicolumn{5}{c|}{Values in KBps with 256 bufsize and 2000 max blocks }\\  \hline
+21	&	File Read 	& Read from a file	&	182340	&	11524 	&	58647	&	49830	&	4.3x	\\	\hline
+22	&	File Write 	& Write on a file	&	99850	&	10500 	&	39500	&	38200	&	3.6x	\\	\hline
+23	&	File Copy 	& Transfers data from one file to another	&	59612	&	5432 	&	22225	&	20070	&	3.7x	\\	\hline
+        \hline
+      \end{tabular}
+\caption{\label{tab:kvm_performance}Performance comparison of bare-metal, unmodified KVM, KVM-paravirtual, and our (KVM-BT) approach. The details of
+the benchmarks, our test system, and the various KVM variants is discussed in Section~\ref{sec:results}. The last column computes the speedup of {\tt KVM-BT} over {\tt KVM}.}
+\end{table*} 
+

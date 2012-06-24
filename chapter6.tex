@@ -9,6 +9,7 @@ Our benchmarks are described in Table~\ref{tab:kvm_performance}. We use four mac
 
 The number of privileged instructions executed by each benchmark are reported in Table~\ref{tab:vm_exit_stats}. We do not report performance comparisons on purely user-level compute-intensive workloads because they exhibit near bare-metal performance for all cases.
 
+\section{Comparison of native with various virtualization solutions}
 We implement the following optimizations in Linux/KVM:
 \begin{enumerate}
   \item In-place Binary Translation and Read/Write Tracing
@@ -64,7 +65,7 @@ File Copy	&	5432	&	10408	&	20070\\	\cline{1-4}
 \begin{table*}
 \centering
 \begin{tabular}{
-  |p{1.2cm}@{}|@{ }c@{ }|@{}p{1.3cm}|@{}p{1.0cm}|@{}p{1.0cm}@{}|@{ }c@{ }|@{}p{1.2cm}|@{}p{1.2cm}|@{}p{1.0cm}|@{ }c@{ }|@{}p{1.2cm}|@{}p{0.9cm}|@{}p{0.9cm}|@{ }c@{ }|@{}p{1.2cm}|@{}p{0.9cm}|@{}p{0.9cm}@{}|} \hline
+  |p{1.2cm}@{}|@{ }c@{ }|@{}p{0.9cm}|@{}p{1.2cm}|@{}p{1.0cm}@{}|@{ }c@{ }|@{}p{0.8cm}|@{}p{1.2cm}|@{}p{1.0cm}|@{ }c@{ }|@{}p{0.8cm}|@{}p{1.2cm}|@{}p{0.9cm}|@{ }c@{ }|@{}p{0.8cm}|@{}p{1.2cm}|@{}p{0.9cm}@{}|} \hline
 	         &  & \multicolumn{3}{c|}{\tt KVM}& & \multicolumn{3}{c|}{\tt Adapt-PR} & & \multicolumn{3}{c|}{\tt Adapt-DM} & & \multicolumn{3}{c|}{\tt KVM-PV} \\ \hline
 
            &&{\tt Priv. Exits}&{\tt TLB miss}&{\tt Acc. Viol} &&{\tt Priv. Exits}&{\tt TLB miss}&{\tt Acc. Viol.}&&{\tt Priv. Exits}&{\tt TLB miss}&{\tt Acc. Viol}&&{\tt Priv. Exits}&{\tt TLB miss}&{\tt Acc. Viol} \\ \hline  
@@ -84,6 +85,86 @@ exits due to access violations are due to read/write accesses to pages which do 
 \end{table*} 
 \end{center}
 
-Optimization 2 adaptively resizes the shadow TLB entries to reduce the number of tracing page faults and results in performance improvements over unmodified KVM. The second column ({\tt Adapt-PR}) in Table~\ref{tab:detailed_results} shows the performance of KVM with Optimizations~1~and~2. We first discuss the {\tt lmbench} microbenchmarks. The running time of all microbenchmarks improves with Optimizations~1~and~2. The average improvement is 148\%, with the maximum improvement of 223\% in fork. The improvement in a benchmark primarily depends on the reduction in the number of privileged exits. Different microbenchmarks execute different number of privileged instructions and show different corresponding reductions. We next discuss the improvement on macrobenchmarks using Optimizations~1~and~2. We observe a performance improvement of 101\% on the macrobenchmarks, with the maximum improvement seen in Echo Spawn, which also shows the maximum reduction (99\%) in exits due to privileged instructions. For both microbenchmarks and macrobenchmarks, we notice an increase in the number of TLB misses and access violations (due to tracing page faults) on average. The net effect however remains positive. Our next optimization (Optimization~3) further reduces these access violations. We also find that Optimization~3 reduces privileged instruction exits. A slight increase in tlb misses can be observed after Optimization~3 this is due to the fact that in the solution obtained from Optimization~1~and~2  the translation cache is being allocated by the guest while Optimization~3 steals it from the data section causing a slight increase in the tlb misses.
+
+Optimization 2 adaptively resizes the shadow TLB entries to reduce the number of tracing page faults and results in performance improvements over unmodified KVM. The second column ({\tt Adapt-PR}) in Table~\ref{tab:detailed_results} shows the performance of KVM with Optimizations~1~and~2. We first discuss the {\tt lmbench} microbenchmarks. The running time of all microbenchmarks improves with Optimizations~1~and~2. The average improvement is 148\%, with the maximum improvement of 223\% in fork. The improvement in a benchmark primarily depends on the reduction in the number of privileged exits. Different microbenchmarks execute different number of privileged instructions and show different corresponding reductions. We next discuss the improvement on macrobenchmarks using Optimizations~1~and~2. We observe a performance improvement of 101\% on the macrobenchmarks, with the maximum improvement seen in Echo Spawn, which also shows the maximum reduction (99\%) in exits due to privileged instructions. For {\tt unixbench} microbenchmarks, the average improvemnt is XX\%, with maximum improvement in XX. 
+
+For both microbenchmarks and macrobenchmarks, we notice an increase in the number of TLB misses and access violations (due to tracing page faults) on average. The net effect however remains positive. Our next optimization (Optimization~3) further reduces these access violations. We also find that Optimization~3 reduces privileged instruction exits. A slight increase in tlb misses can be observed after Optimization~3 this is due to the fact that in the solution obtained from Optimization~1~and~2  the translation cache is being allocated by the guest while with Optimization~3 steals it from the data section causing a slight increase in the tlb misses. Also since the translation cache is being allocated by the guest using paravirtual extensions in the guest in solution obtained from Optimization~1~and~2, the scan behavior of the guest while dynamically modifying it's guest is not visible while with Optimization~3 this behvior causes the page resizing algorithm to kick in and results in an increase in tlb misses to save tracing page faults.
+This increase has been subdued due to an indirect effect, without Optimization~3 certain guest pages are broken into smaller pages and some of these smaller pages are removed to reduce tracing page faults. With Optimization~3, the number of tracing page faults decreases. This allows Optimization~2 to not have to kick in, allowing pages to remain unbroken and privileged instructions to remain patched. This subdues the TLB misses and also reduces the number of privileged instruction exits. 
 
 Optimization~3 reduces the number of tracing page faults by mirroring the data residing on a traced page and patching the corresponding access instruction to access the data from the mirrored location in future. The reduction is observed in all our benchmarks. The average reduction in the number of access-violation page faults (which are mostly due to tracing page faults) is XX\%.
+
+Overall Optimizations~1,~2~and~3 provide performance comparable to paravirtualization. On our macrobenchmarks, we observe an average speedup of XX\% over unmodified KVM. Optimization~3 provides significant improvements on many benchmarks, including the {\tt find} macrobenchmark, where the improvement is around XX\%. Table~\ref{tab:vm_exit_stats} confirms that these improvements are due to the reduction in exits caused by tracing page faults, and privileged-instruction executions.
+
+\section{Static TLB configured Guest vs Adaptive Page Resizing}
+We next measure the overhead and effectiveness of our adaptive page resizing algorithm. We statically configured the shadow TLB to the best observed configuration for Linux boot benchmark. In this configuration, we loaded the shadow TLB with 13 entries: one entry of size 4MB ({\tt 0xc0000000-0xc03fffff}), four entries of size 1MB each (covering {\tt 0xc0400000-0xc07fffff}), two entries of size 4MB each (covering {\tt 0xc0800000-0xc0ffffff}), three entries of size 16MB each (covering {\tt 0xc1000000-0xc3ffffff}), and three entries of size 64MB each (covering {\tt 0xc4000000-0xcfffffff}). Of these 13 entries, the first two entries were marked execute-only (kernel code is nearly 5MB long) and the rest remained unmodified. We compared the performance of this configuration with our adaptive page resizing algorithm. We disabled Optimization~3 ({\tt Adapt-DM}) for this experiment. Table~\ref{tab:adaptive_tlb_resizing} summarizes our results. For Linux boot benchmark, we observe that our resizing algorithm performs within 1-2\% of the optimal and within 10-20\% of all the other microbenchmarks as well as macrobenchmarks.
+
+The adaptive-pr solution soon approaches the static configuration as it starts patching the privilege instructions. The tracing page faults we observe in Table~\ref{tab:adaptive_tlb_resizing} are mainly due to the accesses to function dispatch tables and exception handlers. As explained in Section~\ref{adaptive_dm} the adaptive page resizing algorithm keeps on trying to break the shadow tlb entries in order to reduce the trace page faults but has to revert back since the privileged code section accessing these are co-existing with them and are equally frequent. this leads to a slight increase in the tlb misses. 
+
+A more fitting benchmark would be when some data section which is heavily accessed got included in a traced region. {\tt Custom Pipe} and {\tt Custom Syscall} are custom experiments where all the privileged code belonging accessing the exception handlers and function dispatch tables has been removed statically from the guest and {\tt Pipe} \& {\tt Syscall} from unixbench are run on it. Thus the memory region containing the function dispatch tables and exception handlers now act as nearly pure data section. We can observe a 30x decrease in number of tracing page faults in both these custom experiments. An increase in tlb misses can be observed also due to fragmentation but the increase in terms of absolute tlb misses is not so significant as compared to the decrease in exits due to tracing page faults. The same behavior is reflected in their raw scores for these custom experiments.
+
+\begin{table*}
+\centering
+      \begin{tabular}{|p{2.0cm}| r r |} \hline
+        Benchmark\verb, ,& {\tt Static-TLB} \verb, ,& {\tt Adapt-PR} \verb, , \\ \hline
+
+     & \multicolumn{2}{c|}{Running Time in $sec$}\\ \cline {2-3}
+Linux boot	&	12.98	&	13.02\\
+Echo Spawn	&	8.0	&	7.80\\
+Find	&	0.90	&	0.98\\
+Lame	&	0.51	&	0.51\\
+\cline{1-3}
+\multicolumn{1}{|c|}{Lmbench Benchmark}     & \multicolumn{2}{c|}{Latency in $msec$}\\  \cline{1-3}
+syscall	&	0.007	&	0.009\\
+stat	 &	0.011	&	0.012\\
+fstat	&	0.008	&	0.009\\
+open/close:	&	0.022	&	0.026\\
+sig hndl	&	0.008	&	0.009\\
+pipe 	&	0.053	&	0.062\\
+fork	&	2.068	&	2.020\\
+exec	&	7.792	&	7.457\\
+sh	&	17.076	&	16.565\\
+\cline{1-3}
+\multicolumn{1}{|c|}{Unixbench Benchmark}     & \multicolumn{2}{c|}{Number of Calls}\\  \cline{1-3}
+Dhrystone 2	&	48833854	&	48904947\\
+System Call	&	344877	&	286057\\
+Pipe-based context switching	&	160575	&	159256\\
+Process Creation	&	7101	&	7679\\
+Pipe Throughput	&	557045	&	469538\\
+Hanoi	&	8835343	&	8690019\\
+Custom Pipe	&	557045	&	994777\\
+Custom Syscall	&	344877	&	739343\\
+\cline{1-3}
+\multicolumn{1}{|c|}{Unixbench Filesystem Benchmark}     & \multicolumn{2}{c|}{Throughput in KBps with 256 bufsize and 2000 max blocks
+}\\  \cline{1-3}
+File Read	&	28346	&	24151\\
+File Write	&	22450	&	19050\\
+File Copy	&	12201	&	10408\\
+ \hline
+      \end{tabular}
+\caption{\label{tab:adaptive_tlb_resizing}Measuring the overhead and performance of adaptive page resizing ({\tt Adapt-PR}) algorithm, in comparison to
+a statically configured TLB ({\tt Static-TLB}). The static TLB configuration was setup such that it provides the best performance for the Linux boot benchmark. We disable {\tt Adapt-DM} optimization for this experiment.}
+\end{table*} 
+
+\begin{table*}
+\centering
+\begin{tabular}{|l|@{ }c@{ }|p{1cm}|c|p{1cm}|@{ }c@{ }|p{1cm}|c|p{1cm}|} \hline
+	         &&  \multicolumn{3}{c|} {Static TLB Configuration}&& \multicolumn{3}{c|} {Adapt-PR} \\ \hline
+
+           &&{\tt Priv. Exits}&{\tt TLB miss}&{\tt Acc. Viol}&&{\tt Priv. Exits}&{\tt TLB miss}&{\tt Acc. Viol}\\ \hline  
+Boot	&&	41770	&	320941	&	452482	&&	48560	&	326825	&	460001	\\	\hline
+Find	&&	908	&	2676	&	98113	&&	965	&	2655	&	98145	\\	\hline
+Lame	&&	637	&	2052	&	3124	&&	636	&	2085	&	3126	\\	\hline
+Echo Spawn	&&	35929	&	485870	&	513294	&&	35823	&	492129	&	518255	\\	\hline
+Pipe 	&&	15742	&	1144	&	6008821	&&	18762	&	1113	&	6010468	\\	\hline
+Hanoi	&&	224929	&	1116	&	151104	&&	225211	&	1088	&	151308	\\	\hline
+Syscall	&&	12791	&	1135	&	6006963	&&	15105	&	1130	&	6008149	\\	\hline
+Process Creation	&&	101427	&	815074	&	897920	&&	100796	&	835408	&	897302	\\	\hline
+Context switching	&&	614104	&	1260	&	3608524	&&	616684	&	7702	&	3609690	\\	\hline
+Dhrystone 2	&&	7663	&	1197	&	6158	&&	7656	&	1127	&	6132	\\	\hline
+Custom Pipe	&&	15742	&	1144	&	6008821	&&	15832	&	63963	&	235367	\\	\hline
+Custom Syscall	&&	12791	&	1135	&	6006963	&&	12921	&	33050	&	194482	\\	\hline
+      \end{tabular}
+\caption{\label{tab:adaptive_tlb_resizing_exits}Sources of VM exits, while comparing {\tt Static-TLB} with {\tt Adapt-PR}. We disable {\tt Adapt-DM} optimization for this experiment.}
+\end{table*}
+
+

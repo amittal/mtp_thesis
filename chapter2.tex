@@ -5,6 +5,72 @@ The virtualization overheads of trap-and-emulate style virtualization can be up 
 
 In adaptive binary translation, number of distinct program counter (PC) values that cause exits are profiled and are translated to corresponding non privileged VMM logic. Figure~\ref{fig:pc_profile} shows a histogram on the number of distinct PC values and the frequency of exits on them. Table~\ref{tab:pcexits_linuxboot} presents the exit profile of different PCs in more detail for the Linux boot benchmark. For example, around 92\% of all exits are caused by only 93 distinct PCs for guest Linux boot.
 
+\begin{table}[!b]
+\centering
+     \begin{tabular}{|l | p{5cm} |} \hline
+       Opcode \verb, , & Description \\ \hline
+       {\tt mfmsr} & Move from machine state register \\ \hline
+       {\tt mtmsr} & Move to machine state register \\\hline
+       {\tt mfspr} & Move from special purpose register \\\hline
+       {\tt mtspr} & Move to special purpose register \\\hline
+       {\tt wrtee(i)} & Write MSR External Enable  \\\hline
+       {\tt rfi} & Return from Interrupt \\\hline
+       {\tt tlbwe} & Writes a TLB entry in hardware\\\hline
+       \hline
+       Exception \verb, , & Description \\ \hline
+       {\tt dtlbmiss} & Page fault on data due to TLB not present\\    \hline
+       {\tt itlbmiss} & Page fault on instruction due to TLB not present\\    \hline
+       {\tt dsi} & Page fault due to insufficient privilege\\\hline
+
+     \end{tabular}
+\caption{\label{tab:priv_opcodes} Sources of VM Exits: Opcodes and Exceptions}
+\end{table}
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[scale=0.5]{exit_count.eps}
+\caption{\label{fig:opcode_exit_fraction}Main sources of VM exits}
+\end{figure}
+
+\begin{table}[!b]
+\centering
+     \begin{tabular}{lcc} \hline
+       Instruction class  & Exit count & \% of total exits  \\ \hline
+       {\tt mfspr} & 4484245 & 33.8  \\
+       {\tt wrtee} & 2792109 & 21.1  \\
+       {\tt mtspr} & 2307647 & 17.4  \\
+       {\tt mfmsr} & 575302 & 9.5 \\
+       {\tt rfi} & 413847 & 4.3 \\
+       {\tt mtmsr} & 391813 & 3.1 \\
+       {\tt dtlbmiss} & 198239 & 1.5 \\
+       {\tt itlbmiss} & 192046 & 1.4 \\
+       \hline
+     \end{tabular}
+\caption{\label{tab:exitcount_linuxboot}Main sources of VM exits and their frequency on guest Linux boot (refer Table~\ref{tab:priv_opcodes} for semantics of these opcodes)}
+\end{table}
+
+\begin{table}
+\centering
+     \begin{tabular}{lcc} \hline
+       Exits count  & PC count & \% of total exits  \\ \hline
+       $>$20000 & 93 & 91.9  \\
+       $>$10000 & 23 & 3.1  \\
+       $>$5000 & 68 & 4.2  \\
+       $>$2000 & 12 & 0.3 \\
+       $>$1000 & 17 & 0.2 \\
+       $<$1000 & 299 & 0.2 \\
+       \hline
+     \end{tabular}
+\caption{\label{tab:pcexits_linuxboot}PCs responsible for VM exits on guest Linux boot}
+\end{table}
+
+\begin{figure}[!htb]
+\centering
+
+\includegraphics[scale=0.5]{pc_count.eps}
+\caption{\label{fig:pc_profile}Exit Profile of Different Guest PCs for three different macrobenchmarks}
+\end{figure}
+
 Modifying the guest's address space has obvious pitfalls. Firstly, binary translation must ensure correctness in presence of arbitrary branches in the code. For example, it would be incorrect if the guest could potentially jump to the middle of the translated code.To ensure correctness, a privileged guest instruction is replaced by at most one translated instruction in the guest's address space. Because instructions are fixed length and word aligned on Power Architecture platform, this ensures that there can never be a branch to the middle of the translated code.
 
 These translations to non-privileged VMM logic may be single line  or multi-line in nature. Some privileged opcodes can be emulated by single-instruction translations. For example, {\tt mfmsr} is translated to a {\tt load} instruction to the address of the emulated {\tt msr} register in the shared read/write page. Other opcodes which can be translated to single instructions are {\tt mfmsr}, {\tt mfspr} and {\tt mtspr}. These opcodes requiring single-instruction translations cause the bulk of privileged exits in common workloads (refer Figure~\ref {fig:opcode_exit_fraction}). We call the privileged instruction that was patched, the {\em patch-site}.
@@ -24,19 +90,6 @@ We found that it is not always possible to find unmapped guest virtual address s
 
 \section{Memory Tracing}
 \label{memory_tracing}
-
-\begin{figure}[!htb]
-\centering
-\includegraphics[scale=0.5]{exit_count.eps}
-\caption{\label{fig:opcode_exit_fraction}Main sources of VM exits}
-\end{figure}
-
-\begin{figure}[!htb]
-\centering
-
-\includegraphics[scale=0.5]{pc_count.eps}
-\caption{\label{fig:pc_profile}Exit Profile of Different Guest PCs for three different macrobenchmarks}
-\end{figure}
 
 \begin{figure}[!htb]
 \centering
