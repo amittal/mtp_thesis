@@ -1,0 +1,53 @@
+\chapter{Literature Survey}\label{ch:2}
+\section{LightWeight Adaptive Binary Translation}
+\label{adaptive_binary_translation}
+The virtualization overheads of trap-and-emulate style virtualization can be up to 20x for compute-intensive workloads executing a large number of privileged instructions (Table~\ref{tab:kvm_performance}). The primary source of overhead are VM-exits due to guest privileged instructions. Table~\ref{tab:priv_opcodes} lists the most executed privileged opcodes and briefly explains their semantics. Figure~\ref{fig:opcode_exit_fraction} shows the percentage of exits caused due to each opcode. Only five opcodes result in more than 80\% of exits on all three benchmarks. Table~\ref{tab:exitcount_linuxboot} presents the frequency profile of VM exits on the Linux boot benchmark in more detail.
+
+In adaptive binary translation, number of distinct program counter (PC) values that cause exits are profiled and are translated to corresponding non privileged VMM logic. Figure~\ref{fig:pc_profile} shows a histogram on the number of distinct PC values and the frequency of exits on them. Table~\ref{tab:pcexits_linuxboot} presents the exit profile of different PCs in more detail for the Linux boot benchmark. For example, around 92\% of all exits are caused by only 93 distinct PCs for guest Linux boot.
+
+Modifying the guest's address space has obvious pitfalls. Firstly, binary translation must ensure correctness in presence of arbitrary branches in the code. For example, it would be incorrect if the guest could potentially jump to the middle of the translated code.To ensure correctness, a privileged guest instruction is replaced by at most one translated instruction in the guest's address space. Because instructions are fixed length and word aligned on Power Architecture platform, this ensures that there can never be a branch to the middle of the translated code.
+
+These translations to non-privileged VMM logic may be single line  or multi-line in nature. Some privileged opcodes can be emulated by single-instruction translations. For example, {\tt mfmsr} is translated to a {\tt load} instruction to the address of the emulated {\tt msr} register in the shared read/write page. Other opcodes which can be translated to single instructions are {\tt mfmsr}, {\tt mfspr} and {\tt mtspr}. These opcodes requiring single-instruction translations cause the bulk of privileged exits in common workloads (refer Figure~\ref {fig:opcode_exit_fraction}). We call the privileged instruction that was patched, the {\em patch-site}.
+
+Other privileged opcodes require translation to multiple instructions. To implement multi-line translation, such instructions are instead replaced with a direct branch to a emulation code fragment in a host-managed translation cache. Also the emulation code in the translation cache is terminated with another branch {\em back} to the instruction following the patch-site (see Figure~\ref{fig:txcache}). Because each patch-site requires a different terminating branch instruction, a new translation is generated for each patch-site. This branch is  implemented as a single instruction in the guest’s address space, and the translation cache is allocated in host’s address space.
+
+A mechanism for the guest is provided to directly access the translation cache in host’s address space. Thus the translation cache and the emulated guest state must always remain accessible to the translated code in the guest address space for implementing these VMM logics. To allow the guest to directly access the translation cache and emulated guest state maintained by hypervisor, these regions are mapped to an unused/unmapped region of the guest by inserting a shadow tlb entry mapping the guest's unmapped region to these hypervisor maintained structures. Thus the VMM needs to find a large enough unmapped region in the guest’s virtual address space, which can be directly accessed by the replaced instruction. Because a single Power Architecture instruction cannot address the entire 32-bit address space, this places constraints on the placement of these data structures.
+
+We now discuss the resulting placement constraints on these data structures. The translated code needs to access either the emulated guest state or the translation cache.  Single-instruction translations access the emulated state using load and store instructions. To avoid any register overwrites, these memory access instructions must encode the address within the opcode. Power Architecture ISA allows the specification of a signed 16-bit displacement. This implies that the emulated state must lie either in the top or bottom 32KB of the guest address space. If such address space is not available, single-instruction translations can be converted to multiple-instruction translations to allow more placement flexibility.
+
+For multiple-instruction translations, the privileged instruction is replaced with a branch to the translation cache. Branch instructions are of two types: direct and indirect. An indirect branch would clobber the link register or will result in register overwrites. To prevent such clobbering patch multi-line instructions would have to be patched with multi-line translated code which poses the danger of a branch between the translated code as discussed earlier (see Figure~\ref{fig:multiple_insns_patching}). This limits the adaptive binary translator to use direct branches only. A direct branch in Power Architecture platform can only jump $\pm$32MB relative to it's location. This constrains the translation cache to lie within $\pm$32MB of the patch-site.
+
+We found that it is not always possible to find unmapped guest virtual address space which satisfies these constraints. We present a scheme to steal guest’s address space and place these data structures in the stolen space.
+
+\section{Full Adaptive Binary Translation}
+\label{full_binary_translation}
+
+\section{Memory Tracing}
+\label{memory_tracing}
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[scale=0.5]{exit_count.eps}
+\caption{\label{fig:opcode_exit_fraction}Main sources of VM exits}
+\end{figure}
+
+\begin{figure}[!htb]
+\centering
+
+\includegraphics[scale=0.5]{pc_count.eps}
+\caption{\label{fig:pc_profile}Exit Profile of Different Guest PCs for three different macrobenchmarks}
+\end{figure}
+
+\begin{figure}[!htb]
+\centering
+
+\includegraphics[scale=0.5]{txcache.eps}
+\caption{\label{fig:txcache}Figure showing patching of multiple instructions with {\tt branch} instruction.}
+\end{figure}
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[scale=0.5]{multiple_ins_patching.eps}
+\caption{\label{fig:multiple_insns_patching}Figure showing patching of multiple instructions using {\tt bl} instruction. This approach fails in presence of arbitrary guest jumps.}
+\end{figure}
+

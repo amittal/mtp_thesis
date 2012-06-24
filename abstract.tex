@@ -1,0 +1,9 @@
+\begin{center}
+\LARGE{Abstract}
+\end{center}
+\ \\ \ \\ \ \\
+{\it Power Architecture processors are popular and widespread on embedded systems, and such platforms are increasingly being used to run virtual machines\cite{embedded_virtualization, KVM_on_embedded_Power}. While the Power Architecture meets the Popek-and-Goldberg virtualization requirements for traditional trap-and-emulate style virtualization, the performance overhead of virtualization remains high. For example, workloads exhibiting a large amount of kernel activity typically show 3-5x slowdowns over bare-metal.\newline
+Recent additions to the Linux kernel contain guest and host side paravirtual extensions for Power Architecture platforms. While these extensions improve performance significantly, they are guest-intrusive, non-portable and cover only a subset of all possible virtualization optimizations.\newline
+This project presents a set of host-side optimizations that achieve comparable performance to the aforementioned paravirtual extensions, on an unmodified guest. Our optimizations are based on adaptive binary translation. Unlike the paravirtual approach, our solution is guest neutral. We implement our ideas in a prototype based on Qemu/KVM. We can optimize dynamically generated guest code, and gracefully handle self-referential and self-modifying code in the guest. After our modifications, KVM can boot a Linux guest around 2.5x faster. Our solution provides equivalent performance to the paravirtual approach, without being guest-specific.
+}
+
