@@ -23,6 +23,7 @@ In summary, this project presents an efficient host-side optimization solution f
 
 %\centering
 \newpage
+%      \noindent \makebox[\textwidth]{%
       \begin{longtable}{|l@{}| p{1.8cm} |p{3.0cm} | p{1.2cm}| p{1.2cm}| p{1.2cm}| p{1.2cm}| p{1.0cm}|}
 	\caption{\label{tab:kvm_performance}Performance comparison of bare-metal, unmodified KVM, KVM-paravirtual, and our (KVM-BT) approach. The details of the benchmarks, our test system, and the various KVM variants is discussed in Section~\ref{ch:6}. The last column computes the speedup of {\tt KVM-BT} over {\tt KVM}.} \\ \hline
         S.No.\verb, ,&  Benchmark\verb, ,& Description  & Bare-metal \verb, ,& {\tt KVM} \verb, , & {\tt KVM PV} \verb, ,& {\tt KVM BT}& Speedup \\ \hline
@@ -76,5 +77,6 @@ In summary, this project presents an efficient host-side optimization solution f
         \hline
 
       \end{longtable}
+%	}
 %\end{table*} 
 
