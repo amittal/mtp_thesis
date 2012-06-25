@@ -1,0 +1,12 @@
+\chapter{Conclusion and Future Work}\label{ch:8}
+We discuss the design and implementation of an efficient host-side virtualization
+solution
+for embedded Power Architecture processors. We propose and validate three important optimizations for efficient virtualization, namely {\em in-place binary translation and read/write tracing}, {\em adaptive page resizing}, and {\em adaptive data mirroring}. The Linux/KVM-based prototype system developed on these ideas shows significant performance improvements on common workloads, and compares favourably to proposed paravirtual approaches.
+
+The recent paravirtual extensions to the Linux kernel for Power Architecture paravirtualization contrasts with our approach. While the paravirtual modifications require extensive changes to the Linux kernel, our approach can achieve comparable performance with only host-side optimizations. Unlike the paravirtual approach, we can optimize dynamically generated/loaded code and ensure correct behaviour in presence of self-referential and self-modifying guest code. We also do not require a trusted guest. The host-guest shared spaces are guest-specific and do not grant a guest any more privileges than it already has. An untrusted guest can at most crash itself.
+
+We present our experiments and results on a uniprocessor guest but our ideas are equally relevant to a multiprocessor guest. For a multiprocessor guest, these optimizations must be implemented for each virtual CPU (VCPU). To reduce synchronization overheads, separate translation and data caches need to be maintained for each VCPU. This minimizes synchronization overheads at the potential cost of marginally higher space overheads. We expect our optimizations to show equivalent performance improvements on a multiprocessor.
+
+In future, more other extensions to this approach should be tried out to further improve the performance e.g TLB collaboration between guest and the hypervisor to reduce the VM exits due to tlb writes and misses. Also both the assumptions mentioned in the Section~\ref{ch:7} arose due while mapping the shared spaces between the hypervisor and the guest, more work/ideas should be tried to remove these constraints as much as possible. Also this approach of light-weight adaptive binary translation should be tried and extended to other architectures such as ARM due to it's less engineering effort as well as the performance gain.
+
+

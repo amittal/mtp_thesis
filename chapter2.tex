@@ -64,9 +64,8 @@ In adaptive binary translation, number of distinct program counter (PC) values t
 \caption{\label{tab:pcexits_linuxboot}PCs responsible for VM exits on guest Linux boot}
 \end{table}
 
-\begin{figure}[!htb]
+\begin{figure}[!tb]
 \centering
-
 \includegraphics[scale=0.5]{pc_count.eps}
 \caption{\label{fig:pc_profile}Exit Profile of Different Guest PCs for three different macrobenchmarks}
 \end{figure}
@@ -77,6 +76,12 @@ These translations to non-privileged VMM logic may be single line  or multi-line
 
 Other privileged opcodes require translation to multiple instructions. To implement multi-line translation, such instructions are instead replaced with a direct branch to a emulation code fragment in a host-managed translation cache. Also the emulation code in the translation cache is terminated with another branch {\em back} to the instruction following the patch-site (see Figure~\ref{fig:txcache}). Because each patch-site requires a different terminating branch instruction, a new translation is generated for each patch-site. This branch is  implemented as a single instruction in the guest’s address space, and the translation cache is allocated in host’s address space.
 
+\begin{figure}[!tb]
+\centering
+\includegraphics[scale=0.5]{txcache.eps}
+\caption{\label{fig:txcache}Figure showing patching of multiple instructions with {\tt branch} instruction.}
+\end{figure}
+
 A mechanism for the guest is provided to directly access the translation cache in host’s address space. Thus the translation cache and the emulated guest state must always remain accessible to the translated code in the guest address space for implementing these VMM logics. To allow the guest to directly access the translation cache and emulated guest state maintained by hypervisor, these regions are mapped to an unused/unmapped region of the guest by inserting a shadow tlb entry mapping the guest's unmapped region to these hypervisor maintained structures. Thus the VMM needs to find a large enough unmapped region in the guest’s virtual address space, which can be directly accessed by the replaced instruction. Because a single Power Architecture instruction cannot address the entire 32-bit address space, this places constraints on the placement of these data structures.
 
 We now discuss the resulting placement constraints on these data structures. The translated code needs to access either the emulated guest state or the translation cache.  Single-instruction translations access the emulated state using load and store instructions. To avoid any register overwrites, these memory access instructions must encode the address within the opcode. Power Architecture ISA allows the specification of a signed 16-bit displacement. This implies that the emulated state must lie either in the top or bottom 32KB of the guest address space. If such address space is not available, single-instruction translations can be converted to multiple-instruction translations to allow more placement flexibility.
@@ -85,22 +90,23 @@ For multiple-instruction translations, the privileged instruction is replaced wi
 
 We found that it is not always possible to find unmapped guest virtual address space which satisfies these constraints. We present a scheme to steal guest’s address space and place these data structures in the stolen space.
 
-\section{Full Adaptive Binary Translation}
-\label{full_binary_translation}
-
-\section{Memory Tracing}
-\label{memory_tracing}
-
-\begin{figure}[!htb]
-\centering
-
-\includegraphics[scale=0.5]{txcache.eps}
-\caption{\label{fig:txcache}Figure showing patching of multiple instructions with {\tt branch} instruction.}
-\end{figure}
-
-\begin{figure}[!htb]
+\begin{figure}
 \centering
 \includegraphics[scale=0.5]{multiple_ins_patching.eps}
 \caption{\label{fig:multiple_insns_patching}Figure showing patching of multiple instructions using {\tt bl} instruction. This approach fails in presence of arbitrary guest jumps.}
 \end{figure}
+
+\section{Full Binary Translation}
+\label{full_binary_translation}
+We call a binary translator which translates all guest instructions a full binary translator. VMware’s x86-based binary translator\cite{adams:asplos06} is an example of such a system. A full binary translator translates all guest code. This can be done statically or dynamically. In static binary translation, the translator translates all the executable code statically to run on the target architecture. While dynamic binary translations translates a shorter sequence of code typically one basic block at a time on the fly during the guest's execution. It relies on the fact that only small portion of the code is executed majority of the times and thus caching the translations would reduce the overhead of doing the translations on the fly. Another major overhead during full binary translation is that translation of an indirect branch (e.g., function return) on a full binary translator incurs significant overhead due to a potential table lookup on each execution.
+
+Full binary translation approach contrasts with the light-weight adaptive binary translation. While full binary translation translates all the guest code that is executed, light-weight adaptive binary translation only translates the privileged instructions. Since guest code is run natively with privileged instructions translated in case of light-weight adaptive binary translation it avoids both the overheads faced by the full binary translator. The disadvantage of light-weight adaptive binary translation is that it changes the guest address space directly and thus have to monitor the guest's accesses to the modified regions. As we demonstrate in this work, it is possible to do this correctly and efficiently using our proposed optimizations. The advantage of our approach is it’s simplicity and often higher performance.
+
+Full Binary translation is a popular technique and has been previously used in various contexts, namely cross-ISA portability\cite{bansal:osdi08, qemu:software}, hardware-based performance acceleration\cite{transmeta_crusoe:chip}, runtime compiler optimizations\cite{bala00dynamo}, program shepherding \cite{bruening04thesis}, testing and debugging\cite{valgrind}. Binary translation was first used for efficient virtualization on the x86 architecture by VMware\cite{adams:asplos06}, and our work is perhaps closest to their approach. The difference is in the translator's design, as previously discussed.
+
+\section{Memory Tracing}
+\label{memory_tracing}
+Memory tracing is a mechanism by which all the accesses to desired regions of memory by the guest can be tracked and emulated if necessary. It is used as a page-protection mechanism to protect a page from any read/write access by the guest. For e.g VMware’s x86-based binary translator\cite{adams:asplos06} uses {\tt memory tracing} to protect accesses (write) to in-memory privileged data such as page tables, memory mapped I/O devices. Tracing a page is done by removing the read/write prvileges form the hardware page protection bits to trap all accesses to the desired page. For example VMware’s x86-based binary translator uses tracing to prevent it's shadow page table entrys (PTEs) from becoming incoherent with the guest PTEs. It removes the read/write permissions from the memory containing the guest PTEs causing every access to guest PTEs get trapped. It then emulates its effect and reflects it in both the guest PTEs and shadow PTEs.
+
+
 

@@ -13,7 +13,6 @@ Stealing a region from a data section increases the tracing page faults on this 
 
 The other way of acquiring translation cache is to get it allocated by the guest and the guest will inform the host using a hypercall mechanism. This requires static changes in the guest kernel similar to para-virtual extensions and thus are not used.
 
-\section{Security Aspects}
-Since we are using shared address region between the hypervisor and the guest we need to make sure that this should not compromise the VMM's security. We use two separate shared memory regions between the host and guest. One region is used for saving guest state registers which are accessible by the guest using loads and stores. The second region is for storing the guest translated code, the existing guest code (privileged instruction) is patched to jump to this translated code. Now in both cases we set appropriate access permissions in their corresponding shadow entries using the MMU hardware. Both memory regions are marked for read/write permission for the VMM, but for the guest supervisor the first region is marked for read/write permission and the second one is marked as execute only thus removing any security concern due to sharing from malicious guest user. A malicious guest supervisor, can only affect its own state by writing on the first region which would result in an undefined behavior which would be the same as without binary optimizations since this was an unmapped region and the guest is trying to access it. Also the second region is execute only and is stolen from a pure data section of the guest and all the accesses to it are being emulated by the hypervisor correctly, it cannot compromise the VMM’s state.
+
 
 

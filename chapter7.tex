@@ -1,0 +1,19 @@
+\chapter{Discussions}\label{ch:7}
+
+\section{Security Aspects}
+Since we are using shared address region between the hypervisor and the guest we need to make sure that this should not compromise the VMM's security. We use two separate shared memory regions between the host and guest. One region is used for saving guest state registers which are accessible by the guest using loads and stores. The second region is for storing the guest translated code, the existing guest code (privileged instruction) is patched to jump to this translated code. Now in both cases we set appropriate access permissions in their corresponding shadow entries using the MMU hardware. Both memory regions are marked for read/write permission for the VMM, but for the guest supervisor the first region is marked for read/write permission and the second one is marked as execute only thus removing any security concern due to sharing from malicious guest user. A malicious guest supervisor, can only affect its own state by writing on the first region which would result in an undefined behavior which would be the same as without binary optimizations since this was an unmapped region and the guest is trying to access it. Also the second region is execute only and is stolen from a pure data section of the guest and all the accesses to it are being emulated by the hypervisor correctly, it cannot compromise the VMM’s state.
+
+\section{Assumptions}
+There are two assumptions we have assumed during this project which are as follows
+\begin{enumerate}
+\item Guest does not use its data sections to store code and will never try to execute them.
+\item Guest's kernel doesn't access its memory region without mapping it first i.e guest does not use demand paging to map its kernel address space.
+\end{enumerate} 
+
+Both the above mentioned assumptions are largely followed for all the practicle OS we know. The first assumption of the guest never executing anything in it's data section arises due to stealing of address space from guest's data sections for storing translation cache.
+This allows us to ensure that the guest will never branch to in-between the translation cache wihtout our knowledge (i.e it will jump only at those location where we have patched it to do so). This prevents any undefined behavior due to such an arbitrary jump.
+
+The second assumption arises while mapping the shared space to store the emulated guest state in an unmapped memory region of guest's address space. We assume that the demand paging is not being used inside the kernel's address space to make sure that only an unmapped region is used for this shared space if found otherwise this optimization is not done. If this was not the case and demand paging was being used for kernel address space then the hypervisor can never determine any unused region in the guest address space without guest's knowledge without which these optimizations are {\tt unsafe}.
+
+
+
